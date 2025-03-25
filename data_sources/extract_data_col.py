@@ -1,9 +1,8 @@
 import os
 import requests
 import json
-import pandas as pd
-from schemas_eia import schemas_end_points as sep
-from secret.get_secret import get_secret_value as gsv
+from data_sources.schemas.schemas_eia import schemas_end_points as sep
+from data_sources.secret.get_secret import get_secret_value as gsv
 import calendar
 from datetime import datetime, timedelta
 

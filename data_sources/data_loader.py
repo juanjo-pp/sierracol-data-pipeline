@@ -1,8 +1,8 @@
 from upload_to_gcs import upload_files_to_gcs
-from extract_data import get_eia_data
+from extract_data_eia import get_eia_data
 
 def load_json_to_gcs():
-    end_point = 'crude_oil_production'
+    end_point = 'ventas'
     fecha_ini = '2020-01'
     fecha_fin = '2020-12'
 
