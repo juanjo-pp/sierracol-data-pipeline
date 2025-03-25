@@ -38,6 +38,10 @@ def call_eia(end_point, fecha_ini, fecha_fin, project_id):
         if response.status_code == 200:
             data = response.json()
             json = data["response"]["data"]
+
+            for row in json:
+                row["value"] = float(row["value"])
+
             max_data = len(json)
             i = i + max_data
             list_json = list_json + json
@@ -56,7 +60,9 @@ def get_eia_data(end_point, fecha_ini, fecha_fin, project_id):
 
     unique_periods = set(record["period_normal"] for record in data)
 
-    output_dir = "output/ndjson"
+    output_dir = "data_sources/output/ndjson"
+
+    os.makedirs(output_dir, exist_ok=True)
 
     list_file_path = []
 
@@ -68,6 +74,10 @@ def get_eia_data(end_point, fecha_ini, fecha_fin, project_id):
         file_path = os.path.join(output_dir, f"{end_point}_{period}.ndjson")
 
         list_file_path.append(file_path)
+
+        print('----------------------------')
+        print(file_path)
+        print('----------------------------')
 
         # Guardar en formato NDJSON
         with open(file_path, "w") as file:

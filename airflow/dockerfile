@@ -1,0 +1,17 @@
+# Especifica la imagen base de Airflow con Python (ajusta las versiones si lo necesitas)
+FROM apache/airflow:2.5.1-python3.9
+
+# Cambia el directorio de trabajo
+WORKDIR /opt/airflow
+
+# Copia el archivo requirements.txt al contenedor
+COPY requirements.txt .
+
+# Instala librerías adicionales de Python desde el archivo requirements.txt
+RUN pip install --no-cache-dir -r requirements.txt
+
+# Configura el usuario que ejecutará Airflow (el usuario 'airflow' ya existe en la imagen base)
+USER airflow
+
+# Copia archivos locales al contenedor si los necesitas
+# Ejemplo: COPY ./dags /opt/airflow/dags

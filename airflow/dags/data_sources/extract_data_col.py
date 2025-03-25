@@ -25,15 +25,9 @@ def get_col_data(prefix):
     """
     Lista todos los archivos dentro de un directorio y devuelve sus rutas absolutas.
     """
-    directory = "csv"
-
-    if not os.path.exists(directory):
-        print(f"⚠️ La carpeta {directory} no existe.")
-        return []
+    directory = "data_sources/csv"
 
     preparation_before_upload(directory, prefix)
-
-
 
     list_final =[
         os.path.join(directory, f)

@@ -1,8 +1,10 @@
-from upload_to_bq import load_file_to_bigquery
-from extract_data_eia import get_eia_data
-from extract_data_col import get_col_data
+from data_sources.upload_to_bq import load_file_to_bigquery
+from data_sources.extract_data_eia import get_eia_data
+from data_sources.extract_data_col import get_col_data
 
 def load_json_to_gcs(llamado, end_point, fecha_ini = None, fecha_fin = None):
+
+    project_id = "juanpe-sierracol"
 
     if llamado == 'eia':
 
@@ -12,8 +14,6 @@ def load_json_to_gcs(llamado, end_point, fecha_ini = None, fecha_fin = None):
 
         list_path = get_col_data(end_point)
 
-
-    project_id = "juanpe-sierracol"
 
     for file_path in list_path:
         table_name = end_point  # Usamos la misma tabla para todos los periodos

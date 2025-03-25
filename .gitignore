@@ -172,3 +172,9 @@ cython_debug/
 
 # PyPI configuration file
 .pypirc
+
+# Omitir archivos JSON
+*.json
+
+#logs de airflow
+airflow/logs/

@@ -4,8 +4,8 @@ from datetime import datetime, timedelta
 import sys
 import os
 
-# Agregar el path del proyecto
-sys.path.append(os.path.abspath(os.path.dirname(__file__) + "/../../sierracol-data-pipeline/data_sources"))
+sys.path.append(os.path.abspath(os.path.dirname(__file__)))  # Agrega la ruta del DAG
+sys.path.append(os.path.abspath(os.path.dirname(__file__) + "/data_sources"))  # Agrega data_sources
 
 from data_sources.data_loader import load_json_to_gcs
 
@@ -20,29 +20,29 @@ default_args = {
 }
 
 dag = DAG(
-    "load_data_to_bq",
+    "load_data_col",
     default_args=default_args,
     description="Carga datos desde Storage a BigQuery",
     schedule_interval="@daily",  # Corre diariamente
     catchup=False,
 )
 
-def run_eia():
-    load_json_to_gcs("eia", "ventas", "2022-01-01", "2022-12-31")
+def run_regalias():
+    load_json_to_gcs("col", "Producci_n_y_Regal_as_por_Campo")
 
-def run_col():
-    load_json_to_gcs("col", "produccion")
+def run_fiscalizada():
+    load_json_to_gcs("col", "Producci_n_Fiscalizada_de_Petr_leo")
 
-task_eia = PythonOperator(
-    task_id="load_eia_data",
-    python_callable=run_eia,
+task_regalias = PythonOperator(
+    task_id="load_col_regalias",
+    python_callable=run_regalias,
     dag=dag,
 )
 
-task_col = PythonOperator(
-    task_id="load_col_data",
-    python_callable=run_col,
+task_fiscalizada = PythonOperator(
+    task_id="load_col_fiscalizada",
+    python_callable=run_fiscalizada,
     dag=dag,
 )
 
-task_eia >> task_col  # Primero corre EIA, luego Colombia
+task_regalias >> task_fiscalizada  # Primero corre EIA, luego Colombia
