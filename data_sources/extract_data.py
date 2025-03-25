@@ -1,34 +1,33 @@
 import os
 import requests
+import json
 import pandas as pd
 from schemas_eia import schemas_end_points as sep
-
-
-# Crear la carpeta de salida si no existe
-os.makedirs("data_sources/output", exist_ok=True)
-
-
-
-# Configuración de la API de EIA
-EIA_API_KEY = "Ss64oru9uS3ZaJfj91YYf7sv0Nvsuv6AMeGnB6mM"  # Reemplázala con tu clave
-EIA_URL = f"https://api.eia.gov/v2/petroleum/crd/crpdn/data/"
-
-# Configuración de Open Data (Banco Mundial)
-WB_URL = "http://api.worldbank.org/v2/en/indicator/NY.GDP.PETR.RT.ZS?downloadformat=csv"
+from secret.get_secret import get_secret_value as gsv
+import calendar
+from datetime import datetime, timedelta
 
 def call_eia(end_point, fecha_ini, fecha_fin):
+
+    if fecha_ini == fecha_fin:
+
+        return("ERROR: LAS FECHAS NO PUEDEN SER IGUALES")
 
     eia_url = sep.get(end_point).get('url')
     params = sep.get(end_point).get('params')
 
-    if params['frequency'] == 'monthly':
-        params['start'] = fecha_ini[:-3]
-        params['end'] = fecha_fin[:-3]
+    if params['frequency'] == 'daily':
+        fecha_ini = fecha_ini + '-01'
+        fecha_fin = f"{fecha_fin}-{calendar.monthrange(*map(int, fecha_fin.split('-')))[1]}"
 
-    elif params['frequency'] == 'daily':
-        params['start'] = fecha_ini
-        params['end'] = fecha_fin
-    params['api_key'] = EIA_API_KEY
+    if params['frequency'] == 'monthly':
+        fecha_fin = (datetime.strptime(fecha_fin, "%Y-%m") + timedelta(days=31)).strftime("%Y-%m")
+
+
+    params['start'] = fecha_ini
+    params['end'] = fecha_fin
+
+    params['api_key'] = gsv('juanpe-sierracol', 'token_eia')
 
     i=0
     max_data = 5000
@@ -48,27 +47,36 @@ def call_eia(end_point, fecha_ini, fecha_fin):
             max_data = 5000
     return list_json
 
-def get_eia_data():
+def get_eia_data(end_point, fecha_ini, fecha_fin):
     """ Extrae datos de la API de EIA y lo guarda en CSV """
-    end_point = 'crude_oil_production'
-    fecha_ini = '2020-01-01'
-    fecha_fin = '2022-12-31'
+
     data = call_eia(end_point, fecha_ini, fecha_fin)
-    df = pd.DataFrame(data)
-    output_path = "data_sources/output/eia_data.csv"
-    df.to_csv(output_path, index=False)
+
+    for record in data:
+        record["period_normal"] = record["period"][:7]
+
+    unique_periods = set(record["period_normal"] for record in data)
+
+    output_dir = "output/ndjson"
+
+    list_file_path = []
+
+    for period in unique_periods:
+        # Filtrar registros correspondientes a este periodo
+        period_records = [rec for rec in data if rec["period_normal"] == period]
+
+        # Definir la ruta del archivo
+        file_path = os.path.join(output_dir, f"{end_point}_{period}.ndjson")
+
+        list_file_path.append(file_path)
+
+        # Guardar en formato NDJSON
+        with open(file_path, "w") as file:
+            for record in period_records:
+                file.write(json.dumps(record) + "\n")
+
+        print(f"Archivo creado: {file_path}")
+
+    return list_file_path
 
 
-
-
-def get_world_bank_data():
-    """ Descarga los datos del Banco Mundial y los guarda en CSV """
-    wb_data = pd.read_csv(WB_URL, skiprows=4)
-    output_path = "data_sources/output/world_bank_data.csv"
-    wb_data.to_csv(output_path, index=False)
-    print(f"✅ Datos del Banco Mundial guardados en {output_path}")
-
-
-if __name__ == "__main__":
-    get_eia_data()
-    get_world_bank_data()
