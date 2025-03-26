@@ -52,7 +52,7 @@ dag = DAG(
     "load_data_col",
     default_args=default_args,
     description="Carga datos desde Storage a BigQuery",
-    schedule_interval="@daily",
+    schedule_interval="@monthly",
     catchup=False,
 )
 

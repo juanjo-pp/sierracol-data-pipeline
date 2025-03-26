@@ -51,7 +51,7 @@ dag = DAG(
     "load_data_eia",
     default_args=default_args,
     description="Carga datos desde Storage a BigQuery",
-    schedule_interval="@daily",
+    schedule_interval="@monthly",
     catchup=False,
 )
 

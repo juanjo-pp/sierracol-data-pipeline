@@ -1,0 +1,18 @@
+pipeline:
+  name: "Airflow"
+  description: "Carga datos desde EIA y fuenets de datos publicos sobre petroleo Colombiano a BigQuery"
+  periodicidad: "mensual"
+
+tasks:
+  - name: "load_data_eia"
+    description: "Carga datos de la API de EIA a BigQuery"
+    dag: "load_data_eia"
+
+  - name: "load_data_col"
+    description: "Carga datos de Colombia desde GCS a BigQuery"
+    dag: "load_data_col"
+
+notifications:
+  slack_webhook: "https://hooks.slack.com/services/"
+  on_success: true
+  on_failure: true
