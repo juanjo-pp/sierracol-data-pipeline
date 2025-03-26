@@ -1,13 +1,40 @@
 from airflow import DAG
 from airflow.operators.python import PythonOperator
 from datetime import datetime, timedelta
-import sys
-import os
+from airflow.providers.slack.operators.slack_webhook import SlackWebhookOperator
+from airflow.operators.dummy_operator import DummyOperator
+import requests
+import json
 
-sys.path.append(os.path.abspath(os.path.dirname(__file__)))  # Agrega la ruta del DAG
-sys.path.append(os.path.abspath(os.path.dirname(__file__) + "/data_sources"))  # Agrega data_sources
+# Importa la función de carga de datos
+from data_sources.data_loader import load_data_to_gcs
+from data_sources.bq_querys import ejecutar_rutinas
 
-from data_sources.data_loader import load_json_to_gcs
+
+def notificar_slack(estado, **context):
+    """
+    Envía una notificación a Slack con el estado de ejecución del DAG.
+    """
+    mensaje = f":bell: *DAG {context['dag'].dag_id}* ha terminado con estado: *{estado}* 🚦\n"
+    mensaje += f"Tarea: `{context['task_instance'].task_id}`\n"
+    mensaje += f"Hora de ejecución: `{context['execution_date']}`"
+
+    url = "https://hooks.slack.com/services/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"
+    headers = {"Content-Type": "application/json"}
+    data = {"text": mensaje}
+
+    response = requests.post(url, headers=headers, data=json.dumps(data))
+    print(f"Slack Response: {response.status_code} - {response.text}")
+
+
+# Callbacks para notificar éxito o fallo
+def notificar_exito(context):
+    notificar_slack("ÉXITO ✅", **context)
+
+
+def notificar_fallo(context):
+    notificar_slack("FALLÓ ❌", **context)
+
 
 default_args = {
     "owner": "airflow",
@@ -15,23 +42,33 @@ default_args = {
     "start_date": datetime(2024, 3, 1),
     "email_on_failure": False,
     "email_on_retry": False,
-    "retries": 1,
-    "retry_delay": timedelta(minutes=5),
+    "on_success_callback": notificar_exito,  # Notificar si corre bien
+    "on_failure_callback": notificar_fallo,  # Notificar si falla
+    "retries": 2,
+    "retry_delay": timedelta(minutes=2),
 }
 
 dag = DAG(
     "load_data_col",
     default_args=default_args,
     description="Carga datos desde Storage a BigQuery",
-    schedule_interval="@daily",  # Corre diariamente
+    schedule_interval="@daily",
     catchup=False,
 )
 
 def run_regalias():
-    load_json_to_gcs("col", "Producci_n_y_Regal_as_por_Campo")
+    load_data_to_gcs("col", "Producci_n_y_Regal_as_por_Campo")
+
 
 def run_fiscalizada():
-    load_json_to_gcs("col", "Producci_n_Fiscalizada_de_Petr_leo")
+    load_data_to_gcs("col", "Producci_n_Fiscalizada_de_Petr_leo")
+
+
+def run_rutinas():
+    ejecutar_rutinas()
+
+
+start = DummyOperator(task_id="start", dag=dag)
 
 task_regalias = PythonOperator(
     task_id="load_col_regalias",
@@ -45,4 +82,22 @@ task_fiscalizada = PythonOperator(
     dag=dag,
 )
 
-task_regalias >> task_fiscalizada  # Primero corre EIA, luego Colombia
+task_rutinas = PythonOperator(
+    task_id="run_rutinas",
+    python_callable=run_rutinas,
+    dag=dag,
+)
+
+# ✅ Nueva tarea para notificar a Slack al finalizar el DAG
+task_slack = PythonOperator(
+    task_id="send_slack_notification",
+    python_callable=lambda **context: notificar_slack("FINALIZADO 🎯", **context),
+    provide_context=True,  # Necesario para pasar `context`
+    dag=dag,
+    trigger_rule="all_done"  # Se ejecuta sin importar si las anteriores fallan o no
+)
+
+end = DummyOperator(task_id="end", dag=dag)
+
+# ✅ Flujo corregido: Ahora `task_slack` se ejecuta siempre al final
+start >> [task_regalias, task_fiscalizada] >> task_rutinas >> task_slack >> end

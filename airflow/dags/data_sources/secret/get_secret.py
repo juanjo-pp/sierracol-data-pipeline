@@ -1,32 +1,20 @@
 from google.cloud import secretmanager
-import base64
 
-
-def get_secret_value(project_id, secret_name):
+def get_secret_value(project_id: str, secret_name: str) -> str:
     """
     Obtiene un secreto desde Google Secret Manager y lo decodifica si es Base64.
 
-    :param project_id: ID del proyecto en GCP
-    :param secret_name: Nombre del secreto en Secret Manager
-    :return: Valor del secreto como string
+    :param project_id: ID del proyecto en GCP.
+    :param secret_name: Nombre del secreto en Secret Manager.
+    :return: Valor del secreto como string.
     """
     client = secretmanager.SecretManagerServiceClient()
 
-    # Construir el nombre del secreto
+    # Construir la ruta del secreto en Secret Manager
     secret_path = f"projects/{project_id}/secrets/{secret_name}/versions/latest"
 
     # Acceder al secreto
     response = client.access_secret_version(name=secret_path)
-    secret_value = response.payload.data
+    secret_value = response.payload.data.decode("utf-8")
 
-    return secret_value.decode("utf-8")
-
-
-"""if __name__ == "__main__":
-    # Configuración (reemplázala con tus valores)
-    PROJECT_ID = "juanpe-sierracol"
-    SECRET_NAME = "token_eia"
-
-    # Obtener el secreto
-    secret = get_secret_value(PROJECT_ID, SECRET_NAME)
-    print(f"🔑 Secreto obtenido: {secret}")"""
+    return secret_value

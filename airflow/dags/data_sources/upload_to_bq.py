@@ -1,7 +1,8 @@
 from google.cloud import bigquery
 import os
 
-def delete_existing_data(client, dataset_id, table_id, period_normal, project_id):
+
+def delete_existing_data(client: bigquery.Client, dataset_id: str, table_id: str, period_normal: str, project_id: str):
     """
     Elimina los datos existentes en la tabla con el mismo period_normal antes de insertar nuevos.
 
@@ -19,9 +20,10 @@ def delete_existing_data(client, dataset_id, table_id, period_normal, project_id
     query_job.result()
     print(f"🗑️ Datos eliminados en {dataset_id}.{table_id} para period_normal = {period_normal}")
 
-def load_file_to_bigquery(file_path, dataset_id, table_id, project_id):
+
+def load_file_to_bigquery(file_path: str, dataset_id: str, table_id: str, project_id: str):
     """
-    Carga un archivo CSV o NDJSON en BigQuery después de eliminar duplicados.
+    Carga un archivo NDJSON en BigQuery después de eliminar duplicados.
 
     :param file_path: Ruta local del archivo a subir.
     :param dataset_id: Nombre del dataset en BigQuery.
@@ -32,25 +34,12 @@ def load_file_to_bigquery(file_path, dataset_id, table_id, project_id):
     period_normal = file_path.split("_")[-1].split(".")[0]
     table_ref = client.dataset(dataset_id).table(table_id)
 
-    # Configuración del formato del archivo
-    if file_path.endswith(".csv"):
-        source_format = bigquery.SourceFormat.CSV
-        job_config = bigquery.LoadJobConfig(
-            source_format=source_format,
-            skip_leading_rows=1,
-            autodetect=True,
-            write_disposition=bigquery.WriteDisposition.WRITE_TRUNCATE
-        )
-        table_id = table_id + f'_{period_normal}'
-
-    elif file_path.endswith(".ndjson"):
-
-
+    if file_path.endswith(".ndjson"):
         try:
-            client.get_table(table_ref)  # Si la tabla existe, intentamos eliminar los datos
+            client.get_table(table_ref)  # Verifica si la tabla existe
             delete_existing_data(client, dataset_id, table_id, period_normal, project_id)
-        except:
-            print(f"La tabla {dataset_id}.{table_id} no existe. No se eliminó ninguna fila.")
+        except Exception:
+            print(f"⚠️ La tabla {dataset_id}.{table_id} no existe. No se eliminó ninguna fila.")
 
         source_format = bigquery.SourceFormat.NEWLINE_DELIMITED_JSON
         job_config = bigquery.LoadJobConfig(
@@ -71,18 +60,25 @@ def load_file_to_bigquery(file_path, dataset_id, table_id, project_id):
     os.remove(file_path)
 
 
+def load_df_to_bigquery(json_data: dict, dataset_id: str, table_id: str, project_id: str):
+    """
+    Carga un DataFrame en BigQuery con la opción de truncar la tabla.
 
-if __name__ == "__main__":
-    # Configuración
-    PROJECT_ID = "juanpe-sierracol"
-    DATASET_ID = "data_eia"
+    :param json_data: Diccionario con el DataFrame a cargar.
+    :param dataset_id: Nombre del dataset en BigQuery.
+    :param table_id: Nombre de la tabla en BigQuery.
+    :param project_id: ID del proyecto en Google Cloud.
+    """
+    client = bigquery.Client(project=project_id)
+    key = list(json_data.keys())[0]
+    period_normal = key.split("_")[-1].split(".")[0]
+    table_ref = f"{project_id}.{dataset_id}.{table_id}{period_normal}"
 
-    # Lista de archivos a cargar
-    files_to_upload = [
-        "output/ndjson/prices_sales_volumes_stocks_2022-01.ndjson"
-    ]
+    job = client.load_table_from_dataframe(
+        json_data[key],
+        table_ref,
+        job_config=bigquery.LoadJobConfig(write_disposition="WRITE_TRUNCATE")
+    )
+    job.result()  # Espera a que termine
+    print(f"✅ Datos subidos a {table_ref}")
 
-    # Cargar archivos en BigQuery después de eliminar duplicados
-    for file_path in files_to_upload:
-        table_name = "prices_sales_volumes_stocks"  # Usamos la misma tabla para todos los periodos
-        load_file_to_bigquery(file_path, DATASET_ID, table_name, PROJECT_ID)

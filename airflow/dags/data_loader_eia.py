@@ -4,12 +4,32 @@ from airflow.operators.dummy_operator import DummyOperator
 from datetime import datetime, timedelta
 import sys
 import os
+import requests
 from dateutil.relativedelta import relativedelta
 
-sys.path.append(os.path.abspath(os.path.dirname(__file__)))  # Agrega la ruta del DAG
-sys.path.append(os.path.abspath(os.path.dirname(__file__) + "/data_sources"))  # Agrega data_sources
+from data_sources.data_loader import load_data_to_gcs
 
-from data_sources.data_loader import load_json_to_gcs
+def notificar_slack(estado, **context):
+    """
+    Envía una notificación a Slack con el estado de ejecución del DAG.
+    """
+    mensaje = f":bell: *DAG {context['dag'].dag_id}* ha terminado con estado: *{estado}* 🚦\n"
+    mensaje += f"Tarea: `{context['task_instance'].task_id}`\n"
+    mensaje += f"Hora de ejecución: `{context['execution_date']}`"
+
+    url = "https://hooks.slack.com/services/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"
+    headers = {"Content-Type": "application/json"}
+    data = {"text": mensaje}
+
+    response = requests.post(url, headers=headers, data=json.dumps(data))
+    print(f"Slack Response: {response.status_code} - {response.text}")
+
+# Callbacks para notificar éxito o fallo
+def notificar_exito(context):
+    notificar_slack("ÉXITO ✅", **context)
+
+def notificar_fallo(context):
+    notificar_slack("FALLÓ ❌", **context)
 
 default_args = {
     "owner": "airflow",
@@ -29,18 +49,20 @@ dag = DAG(
     catchup=False,
 )
 
+# Definir fechas dinámicas para el año pasado (entre enero y diciembre)
 hoy = datetime.today()
-fecha_ini = (hoy - relativedelta(years=1, months=1)).strftime("%Y-%m")
-fecha_fin = (hoy.replace(year=hoy.year - 1)).strftime("%Y-%m")
+anio_pasado = hoy.year - 1
+fecha_ini = f"{anio_pasado}-01"
+fecha_fin = f"{anio_pasado}-12"
 
 def ventas():
-    load_json_to_gcs("eia", "ventas", fecha_ini, fecha_fin)
+    load_data_to_gcs("eia", "ventas", fecha_ini, fecha_fin)
 
 def prices_sales_volumes_stocks():
-    load_json_to_gcs("eia", "prices_sales_volumes_stocks", fecha_ini, fecha_fin)
+    load_data_to_gcs("eia", "prices_sales_volumes_stocks", fecha_ini, fecha_fin)
 
 def crude_oil_production():
-    load_json_to_gcs("eia", "crude_oil_production", fecha_ini, fecha_fin)
+    load_data_to_gcs("eia", "crude_oil_production", fecha_ini, fecha_fin)
 
 # Punto de inicio (opcional)
 start = DummyOperator(task_id="start", dag=dag)
@@ -63,8 +85,16 @@ task_crude_oil_production = PythonOperator(
     dag=dag,
 )
 
+task_slack = PythonOperator(
+    task_id="send_slack_notification",
+    python_callable=lambda **context: notificar_slack("FINALIZADO 🎯", **context),
+    provide_context=True,
+    dag=dag,
+    trigger_rule="all_done"  # Se ejecuta sin importar si las anteriores fallan o no
+)
+
 # Punto de fin (opcional)
 end = DummyOperator(task_id="end", dag=dag)
 
 # Configurar ejecución en paralelo
-start >> [task_ventas, task_prices_sales_volumes_stocks, task_crude_oil_production] >> end
+start >> [task_ventas, task_prices_sales_volumes_stocks, task_crude_oil_production] >> task_slack >> end
