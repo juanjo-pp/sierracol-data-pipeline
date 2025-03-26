@@ -19,7 +19,7 @@ def notificar_slack(estado, **context):
     mensaje += f"Tarea: `{context['task_instance'].task_id}`\n"
     mensaje += f"Hora de ejecución: `{context['execution_date']}`"
 
-    url = "https://hooks.slack.com/services/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"
+    url = "https://hooks.slack.com/services/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"
     headers = {"Content-Type": "application/json"}
     data = {"text": mensaje}
 
