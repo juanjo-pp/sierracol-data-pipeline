@@ -1,7 +1,7 @@
 import requests
 import json
 
-url = "https://hooks.slack.com/services/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"
+url = "https://hooks.slack.com/services/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"
 headers = {"Content-Type": "application/json"}
 data = {"text": "Hello, World!"}
 

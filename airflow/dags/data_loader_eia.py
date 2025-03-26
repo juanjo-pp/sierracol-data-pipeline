@@ -1,10 +1,12 @@
 from airflow import DAG
 from airflow.operators.python import PythonOperator
 from airflow.operators.dummy_operator import DummyOperator
+from airflow.providers.slack.operators.slack_webhook import SlackWebhookOperator
 from datetime import datetime, timedelta
 import sys
 import os
 import requests
+import json
 from dateutil.relativedelta import relativedelta
 
 from data_sources.data_loader import load_data_to_gcs
@@ -17,7 +19,9 @@ def notificar_slack(estado, **context):
     mensaje += f"Tarea: `{context['task_instance'].task_id}`\n"
     mensaje += f"Hora de ejecución: `{context['execution_date']}`"
 
-    url = "https://hooks.slack.com/services/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"
+    print(mensaje)
+
+    url = "https://hooks.slack.com/services/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"
     headers = {"Content-Type": "application/json"}
     data = {"text": mensaje}
 
@@ -37,6 +41,8 @@ default_args = {
     "start_date": datetime(2024, 3, 1),
     "email_on_failure": False,
     "email_on_retry": False,
+    "on_success_callback": notificar_exito,
+    "on_failure_callback": notificar_fallo,
     "retries": 1,
     "retry_delay": timedelta(minutes=5),
 }
