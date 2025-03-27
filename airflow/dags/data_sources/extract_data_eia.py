@@ -54,6 +54,11 @@ def call_eia(end_point: str, fecha_ini: str, fecha_fin: str, project_id: str) ->
             for row in data:
                 row["value"] = float(row["value"]) if row.get("value") not in [None, ""] else None
 
+                for key in list(row.keys()):
+                    new_key = key.replace("-", "_")
+                    if new_key != key:
+                        row[new_key] = row.pop(key)
+
             max_data = len(data)  # Número de registros devueltos
             offset += max_data  # Ajustar el offset para la próxima iteración
             list_json.extend(data)  # Acumular los datos
